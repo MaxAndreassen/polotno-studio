@@ -122,7 +122,7 @@ export const UploadPanel = observer(({ store }) => {
           />
         </label>
       </div>
-      <CloudWarning />
+      {/*<CloudWarning />*/}
       <ImagesGrid
         images={images}
         getPreview={(image) => image.preview}
