@@ -75,10 +75,12 @@ const saveVersions = (designId, versions) => {
 const VersionsPanel = observer(({ store }) => {
   const project = useProject();
   const [variables, setVariables] = React.useState([]);
+  const [variableTypes, setVariableTypes] = React.useState({});
   const [versions, setVersions] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [downloading, setDownloading] = React.useState({});
   const [designId, setDesignId] = React.useState(null);
+  const fileInputRefs = React.useRef({});
 
   // Get current design ID from project or create a hash
   const getCurrentDesignId = () => {
@@ -105,11 +107,42 @@ const VersionsPanel = observer(({ store }) => {
     setDesignId(currentId);
 
     try {
-      const preview = previewTemplateVariables(store, store.toJSON());
-      setVariables(preview.variableNames || []);
+      // Check if store has pages before trying to get JSON
+      if (!store.pages || store.pages.length === 0) {
+        console.log('Store has no pages yet');
+        setVariables([]);
+        setVariableTypes({});
+        return;
+      }
+
+      const currentJson = store.toJSON();
+      if (!currentJson || !currentJson.pages || currentJson.pages.length === 0) {
+        console.log('Store JSON has no pages');
+        setVariables([]);
+        setVariableTypes({});
+        return;
+      }
+
+      const preview = previewTemplateVariables(store, currentJson);
+      const varNames = preview.variableNames || [];
+      
+      console.log('Preview result:', preview); // Debug log
+      console.log('Variable names:', varNames); // Debug log
+      console.log('Changeable elements:', preview.variables); // Debug log
+      
+      setVariables(varNames);
+      
+      // Store variable types for easy lookup
+      const types = {};
+      varNames.forEach(name => {
+        types[name] = preview.variables[name]?.primaryType || 'text';
+      });
+      setVariableTypes(types);
     } catch (e) {
       console.error('Error loading template variables:', e);
+      console.error('Error stack:', e.stack); // More detailed error
       setVariables([]);
+      setVariableTypes({});
     }
 
     // Load saved versions
@@ -140,6 +173,20 @@ const VersionsPanel = observer(({ store }) => {
     const updated = [...versions];
     updated[index] = { ...updated[index], [variable]: value };
     setVersions(updated);
+  };
+
+  const handleImageUpload = (index, variable, file) => {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result;
+      updateVersion(index, variable, dataUrl);
+    };
+    reader.onerror = () => {
+      alert('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
   };
 
   const downloadVersion = async (index) => {
@@ -335,15 +382,80 @@ const VersionsPanel = observer(({ store }) => {
                   <td style={{ padding: '8px' }}>{index + 1}</td>
                   {variables.map((variable) => (
                     <td key={variable} style={{ padding: '4px' }}>
-                      <InputGroup
-                        value={version[variable] || ''}
-                        onChange={(e) =>
-                          updateVersion(index, variable, e.target.value)
-                        }
-                        placeholder={`{{${variable}}}`}
-                        small
-                        style={{ minWidth: '120px' }}
-                      />
+                      {variableTypes[variable] === 'image' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <input
+                            ref={(el) => {
+                              if (el) {
+                                fileInputRefs.current[`${index}-${variable}`] = el;
+                              }
+                            }}
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                handleImageUpload(index, variable, file);
+                              }
+                              // Reset input so same file can be selected again
+                              e.target.value = '';
+                            }}
+                          />
+                          {version[variable] ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <img
+                                src={version[variable]}
+                                alt="Preview"
+                                style={{
+                                  width: '40px',
+                                  height: '40px',
+                                  objectFit: 'cover',
+                                  borderRadius: '2px',
+                                  border: '1px solid rgba(255,255,255,0.2)',
+                                }}
+                              />
+                              <Button
+                                small
+                                minimal
+                                onClick={() => {
+                                  fileInputRefs.current[`${index}-${variable}`]?.click();
+                                }}
+                                style={{ flex: 1 }}
+                              >
+                                Change
+                              </Button>
+                              <Button
+                                icon={<Trash />}
+                                small
+                                minimal
+                                onClick={() => updateVersion(index, variable, '')}
+                                intent="danger"
+                              />
+                            </div>
+                          ) : (
+                            <Button
+                              small
+                              fill
+                              onClick={() => {
+                                fileInputRefs.current[`${index}-${variable}`]?.click();
+                              }}
+                            >
+                              Upload Image
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <InputGroup
+                          value={version[variable] || ''}
+                          onChange={(e) =>
+                            updateVersion(index, variable, e.target.value)
+                          }
+                          placeholder={`{{${variable}}}`}
+                          small
+                          style={{ minWidth: '120px' }}
+                        />
+                      )}
                     </td>
                   ))}
                   <td style={{ padding: '4px', textAlign: 'center' }}>

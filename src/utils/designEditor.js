@@ -35,6 +35,11 @@ export function loadDesign(store, json) {
     store.pages[store.pages.length - 1].remove();
   }
 
+  // Ensure we have an active page
+  if (store.pages.length > 0 && !store.activePage) {
+    store.setActivePage(store.pages[0]);
+  }
+
   return json;
 }
 
