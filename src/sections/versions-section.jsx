@@ -7,7 +7,7 @@ import {
   Spinner,
   Icon,
 } from '@blueprintjs/core';
-import { Trash, Download, Plus } from '@blueprintjs/icons';
+import { Trash, Download, Plus, EyeOn, EyeOff } from '@blueprintjs/icons';
 import { SectionTab } from 'polotno/side-panel';
 import { previewTemplateVariables, generateCard } from '../utils/batchProcessor';
 import { useProject } from '../project';
@@ -80,6 +80,8 @@ const VersionsPanel = observer(({ store }) => {
   const [loading, setLoading] = React.useState(false);
   const [downloading, setDownloading] = React.useState({});
   const [designId, setDesignId] = React.useState(null);
+  const [previewIndex, setPreviewIndex] = React.useState(null);
+  const [originalDesign, setOriginalDesign] = React.useState(null);
   const fileInputRefs = React.useRef({});
 
   // Get current design ID from project or create a hash
@@ -149,6 +151,20 @@ const VersionsPanel = observer(({ store }) => {
     const savedVersions = loadVersions(currentId);
     setVersions(savedVersions);
   }, [store, project?.id]);
+
+  // Restore original design when component unmounts or preview is cancelled
+  React.useEffect(() => {
+    return () => {
+      // Cleanup: restore original design if we're in preview mode
+      if (previewIndex !== null && originalDesign) {
+        try {
+          store.loadJSON(originalDesign);
+        } catch (e) {
+          console.error('Error restoring design on unmount:', e);
+        }
+      }
+    };
+  }, [previewIndex, originalDesign, store]);
 
   // Save versions whenever they change
   React.useEffect(() => {
@@ -274,6 +290,63 @@ const VersionsPanel = observer(({ store }) => {
     }
   };
 
+  const previewVersion = (index) => {
+    const versionData = versions[index];
+    
+    // Check if all required variables are filled
+    const missingVars = variables.filter(v => !versionData[v] || versionData[v] === '');
+    if (missingVars.length > 0) {
+      alert(`Please fill in all variables before previewing. Missing: ${missingVars.join(', ')}`);
+      return;
+    }
+
+    try {
+      // If already previewing, restore original first
+      if (previewIndex !== null && originalDesign) {
+        store.loadJSON(originalDesign);
+      }
+
+      // If previewing the same version, exit preview
+      if (previewIndex === index) {
+        exitPreview();
+        return;
+      }
+
+      // Save current design state (original design)
+      const currentDesign = store.toJSON();
+      setOriginalDesign(currentDesign);
+      setPreviewIndex(index);
+
+      // Get template JSON
+      const templateJson = currentDesign;
+
+      // Generate card with version data
+      generateCard(store, templateJson, versionData);
+    } catch (error) {
+      console.error('Error previewing version:', error);
+      alert('Failed to preview version. Please try again.');
+      // Restore original if preview failed
+      if (originalDesign) {
+        store.loadJSON(originalDesign);
+        setPreviewIndex(null);
+        setOriginalDesign(null);
+      }
+    }
+  };
+
+  const exitPreview = () => {
+    if (previewIndex !== null && originalDesign) {
+      try {
+        store.loadJSON(originalDesign);
+        setPreviewIndex(null);
+        setOriginalDesign(null);
+      } catch (error) {
+        console.error('Error exiting preview:', error);
+        alert('Failed to restore original design.');
+      }
+    }
+  };
+
   if (variables.length === 0) {
     return (
       <div style={{ padding: '15px' }}>
@@ -306,6 +379,32 @@ const VersionsPanel = observer(({ store }) => {
         <h3 style={{ marginBottom: '10px', marginTop: '5px' }}>
           Design Versions
         </h3>
+        {previewIndex !== null && (
+          <div
+            style={{
+              padding: '8px 12px',
+              marginBottom: '10px',
+              backgroundColor: 'rgba(19, 124, 189, 0.2)',
+              border: '1px solid rgba(19, 124, 189, 0.4)',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span style={{ fontSize: '0.9rem', color: '#5C9BD1' }}>
+              <EyeOn style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+              Previewing version {previewIndex + 1} - Design is read-only
+            </span>
+            <Button
+              small
+              minimal
+              icon={<EyeOff />}
+              onClick={exitPreview}
+              text="Exit Preview"
+            />
+          </div>
+        )}
         <p style={{ opacity: 0.7, fontSize: '0.85rem', marginBottom: '10px' }}>
           Manage different versions of your design by filling in the variable
           values below.
@@ -467,12 +566,21 @@ const VersionsPanel = observer(({ store }) => {
                       }}
                     >
                       <Button
+                        icon={previewIndex === index ? <EyeOff /> : <EyeOn />}
+                        onClick={() => previewVersion(index)}
+                        small
+                        minimal
+                        intent={previewIndex === index ? 'primary' : undefined}
+                        active={previewIndex === index}
+                        title={previewIndex === index ? 'Exit preview' : 'Preview this version'}
+                      />
+                      <Button
                         icon={<Download />}
                         onClick={() => downloadVersion(index)}
                         small
                         minimal
                         loading={downloading[index]}
-                        disabled={downloading[index]}
+                        disabled={downloading[index] || previewIndex === index}
                         title="Download this version"
                       />
                       <Button
@@ -483,12 +591,17 @@ const VersionsPanel = observer(({ store }) => {
                               'Are you sure you want to delete this version?'
                             )
                           ) {
+                            // Exit preview if deleting the previewed version
+                            if (previewIndex === index) {
+                              exitPreview();
+                            }
                             deleteVersion(index);
                           }
                         }}
                         small
                         minimal
                         intent="danger"
+                        disabled={previewIndex === index}
                         title="Delete this version"
                       />
                     </div>
