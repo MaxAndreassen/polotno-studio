@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Spinner, Button, Card, InputGroup } from '@blueprintjs/core';
+import { Spinner, Button, Card, InputGroup, Dialog } from '@blueprintjs/core';
 import { ArrowLeft, Edit, Plus, Trash } from '@blueprintjs/icons';
 import { Workspace } from 'polotno/canvas/workspace';
 import { PolotnoContainer, WorkspaceWrap } from 'polotno';
@@ -46,8 +46,11 @@ const DesignDetailPage = () => {
   const [loading, setLoading] = React.useState(true);
   const [generatingPreviews, setGeneratingPreviews] = React.useState(false);
   const [variables, setVariables] = React.useState([]);
+  const [variableTypes, setVariableTypes] = React.useState({});
   const [editingNameIndex, setEditingNameIndex] = React.useState(null);
+  const [editingVersionIndex, setEditingVersionIndex] = React.useState(null);
   const hasLoadedVersions = React.useRef(false);
+  const fileInputRefs = React.useRef({});
 
   // Create a temporary store for generating version previews
   const tempStore = React.useMemo(() => {
@@ -101,7 +104,15 @@ const DesignDetailPage = () => {
         if (storeJSON) {
           tempStore.loadJSON(storeJSON);
           const preview = previewTemplateVariables(tempStore, storeJSON);
-          setVariables(preview.variableNames || []);
+          const varNames = preview.variableNames || [];
+          setVariables(varNames);
+          
+          // Store variable types for easy lookup
+          const types = {};
+          varNames.forEach(name => {
+            types[name] = preview.variables[name]?.primaryType || 'text';
+          });
+          setVariableTypes(types);
         }
       } catch (error) {
         console.error('Error loading design:', error);
@@ -200,7 +211,37 @@ const DesignDetailPage = () => {
       setVersions(newVersions);
       // Clear all previews - they will be regenerated
       setVersionPreviews({});
+      // Close edit mode if deleting the edited version
+      if (editingVersionIndex === index) {
+        setEditingVersionIndex(null);
+      }
     }
+  };
+
+  const updateVersion = (index, variable, value) => {
+    const updated = [...versions];
+    updated[index] = { ...updated[index], [variable]: value };
+    setVersions(updated);
+    // Clear preview for this version - it will be regenerated
+    setVersionPreviews((prev) => {
+      const newPreviews = { ...prev };
+      delete newPreviews[index];
+      return newPreviews;
+    });
+  };
+
+  const handleImageUpload = (index, variable, file) => {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result;
+      updateVersion(index, variable, dataUrl);
+    };
+    reader.onerror = () => {
+      alert('Failed to read image file');
+    };
+    reader.readAsDataURL(file);
   };
 
   const updateVersionName = (index, name) => {
@@ -470,6 +511,7 @@ const DesignDetailPage = () => {
               {versions.map((version, index) => {
                 const preview = versionPreviews[index];
                 const versionName = version._name || `Version ${index + 1}`;
+                const isEditing = editingVersionIndex === index;
 
                 return (
                   <Card
@@ -576,13 +618,14 @@ const DesignDetailPage = () => {
                         }}
                         autoFocus
                         small
-                        style={{ fontSize: '0.85rem', textAlign: 'center' }}
+                        style={{ fontSize: '0.85rem', textAlign: 'center', marginBottom: '0.5rem' }}
                       />
                     ) : (
                       <div
                         style={{
                           fontSize: '0.85rem',
                           margin: 0,
+                          marginBottom: '0.5rem',
                           color: '#333',
                           fontWeight: '600',
                           textAlign: 'center',
@@ -604,6 +647,18 @@ const DesignDetailPage = () => {
                         {versionName}
                       </div>
                     )}
+
+                    {/* Edit Button */}
+                    {variables.length > 0 && (
+                      <Button
+                        icon={<Edit />}
+                        minimal
+                        small
+                        fill
+                        onClick={() => setEditingVersionIndex(index)}
+                        text="Edit"
+                      />
+                    )}
                   </Card>
                 );
               })}
@@ -611,6 +666,138 @@ const DesignDetailPage = () => {
           )}
         </div>
       </div>
+
+      {/* Edit Version Modal */}
+      {editingVersionIndex !== null && versions[editingVersionIndex] && (
+        <Dialog
+          isOpen={editingVersionIndex !== null}
+          onClose={() => setEditingVersionIndex(null)}
+          title={`Edit ${versions[editingVersionIndex]._name || `Version ${editingVersionIndex + 1}`}`}
+          style={{ width: '90vw', maxWidth: '600px' }}
+        >
+          <div style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {/* Version Name */}
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.9rem' }}>
+                  Version Name
+                </label>
+                <InputGroup
+                  value={versions[editingVersionIndex]._name || `Version ${editingVersionIndex + 1}`}
+                  onChange={(e) => updateVersionName(editingVersionIndex, e.target.value)}
+                  placeholder={`Version ${editingVersionIndex + 1}`}
+                  fill
+                />
+              </div>
+
+              {/* Variables */}
+              {variables.length > 0 && (
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '600', fontSize: '0.9rem' }}>
+                    Variables
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {variables.map((variable) => (
+                      <div key={variable}>
+                        <label
+                          style={{
+                            display: 'block',
+                            marginBottom: '0.5rem',
+                            fontSize: '0.85rem',
+                            fontWeight: '500',
+                            color: '#666',
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {variable}
+                        </label>
+                        {variableTypes[variable] === 'image' ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <input
+                              ref={(el) => {
+                                if (el) {
+                                  fileInputRefs.current[`${editingVersionIndex}-${variable}`] = el;
+                                }
+                              }}
+                              type="file"
+                              accept="image/*"
+                              style={{ display: 'none' }}
+                              onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                  handleImageUpload(editingVersionIndex, variable, file);
+                                }
+                                e.target.value = '';
+                              }}
+                            />
+                            {versions[editingVersionIndex][variable] ? (
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                                <img
+                                  src={versions[editingVersionIndex][variable]}
+                                  alt="Preview"
+                                  style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    objectFit: 'cover',
+                                    borderRadius: '4px',
+                                    border: '1px solid #e0e0e0',
+                                    flexShrink: 0,
+                                  }}
+                                />
+                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                  <Button
+                                    small
+                                    text="Change Image"
+                                    onClick={() => {
+                                      fileInputRefs.current[`${editingVersionIndex}-${variable}`]?.click();
+                                    }}
+                                  />
+                                  <Button
+                                    icon={<Trash />}
+                                    small
+                                    minimal
+                                    intent="danger"
+                                    onClick={() => updateVersion(editingVersionIndex, variable, '')}
+                                    text="Remove Image"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <Button
+                                small
+                                fill
+                                text="Upload Image"
+                                onClick={() => {
+                                  fileInputRefs.current[`${editingVersionIndex}-${variable}`]?.click();
+                                }}
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <InputGroup
+                            value={versions[editingVersionIndex][variable] || ''}
+                            onChange={(e) => updateVersion(editingVersionIndex, variable, e.target.value)}
+                            placeholder={`{{${variable}}}`}
+                            fill
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.5rem' }}>
+              <Button
+                onClick={() => setEditingVersionIndex(null)}
+                text="Close"
+              />
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
     </>
   );
