@@ -299,9 +299,7 @@ const sections = DEFAULT_SECTIONS
   .filter((section) => section.name !== 'qr')
   .filter((section) => section.name !== 'background')
   .filter((section) => section.name !== 'templates')
-  .filter((section) => section.name !== 'draw')
-
-  console.log(sections);
+  .filter((section) => section.name !== 'draw');
 
 // Add versions section
 sections.push(VersionsSection);

@@ -283,46 +283,87 @@ const VersionsPanel = observer(({ store }) => {
       const currentDesign = store.toJSON();
       const templateJson = store.toJSON();
 
+      // Get page dimensions
+      const pageWidth = store.activePage.width;
+      const pageHeight = store.activePage.height;
+
+      // Calculate grid dimensions (aim for roughly square grid)
+      const numVersions = versions.length;
+      const cols = Math.ceil(Math.sqrt(numVersions));
+      const rows = Math.ceil(numVersions / cols);
+
+      // Spacing between cards in the grid
+      const padding = 20;
+      const cardWidth = pageWidth;
+      const cardHeight = pageHeight;
+
+      // Create combined canvas
+      const combinedCanvas = document.createElement('canvas');
+      combinedCanvas.width = cols * cardWidth + (cols + 1) * padding;
+      combinedCanvas.height = rows * cardHeight + (rows + 1) * padding;
+      const ctx = combinedCanvas.getContext('2d');
+
+      // Fill background with white
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, combinedCanvas.width, combinedCanvas.height);
+
+      // Generate each version and draw to grid
+      const versionCanvases = [];
       for (let i = 0; i < versions.length; i++) {
         const versionData = versions[i];
         try {
           // Generate card with version data
           generateCard(store, templateJson, versionData);
 
-          // Generate filename from version name or fallback to version data
-          let filename;
-          if (versionData._name && versionData._name.trim()) {
-            filename = sanitizeFilename(versionData._name) || `version-${i + 1}`;
-          } else {
-            filename = Object.entries(versionData)
-              .filter(([key, value]) => key !== '_name' && value)
-              .slice(0, 3)
-              .map(([key, value]) => value)
-              .join('-')
-              .replace(/[^a-z0-9-]/gi, '-')
-              .toLowerCase() || `version-${i + 1}`;
-          }
-
-          // Download as PNG image
-          await store.saveAsImage({
+          // Render to canvas
+          const versionCanvas = await store._toCanvas({
             pageId: store.activePage.id,
             pixelRatio: 1,
-            mimeType: 'image/png',
-            fileName: `${filename}.png`,
           });
 
-          // Small delay to prevent browser blocking multiple downloads
-          await new Promise((resolve) => setTimeout(resolve, 300));
+          versionCanvases.push(versionCanvas);
         } catch (error) {
-          console.error(`Error downloading version ${i + 1}:`, error);
+          console.error(`Error generating version ${i + 1}:`, error);
+          // Create a blank canvas as placeholder
+          const blankCanvas = document.createElement('canvas');
+          blankCanvas.width = cardWidth;
+          blankCanvas.height = cardHeight;
+          const blankCtx = blankCanvas.getContext('2d');
+          blankCtx.fillStyle = '#f0f0f0';
+          blankCtx.fillRect(0, 0, cardWidth, cardHeight);
+          versionCanvases.push(blankCanvas);
         }
       }
+
+      // Draw all versions onto the combined canvas in grid layout
+      for (let i = 0; i < versionCanvases.length; i++) {
+        const row = Math.floor(i / cols);
+        const col = i % cols;
+        const x = padding + col * (cardWidth + padding);
+        const y = padding + row * (cardHeight + padding);
+
+        ctx.drawImage(versionCanvases[i], x, y, cardWidth, cardHeight);
+      }
+
+      // Download the combined canvas
+      combinedCanvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'all-versions.png';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
+      }, 'image/png');
 
       // Restore original design
       store.loadJSON(currentDesign);
     } catch (error) {
       console.error('Error downloading all versions:', error);
-      alert('Failed to download some versions. Please try again.');
+      alert('Failed to download versions. Please try again.');
     } finally {
       setLoading(false);
     }
