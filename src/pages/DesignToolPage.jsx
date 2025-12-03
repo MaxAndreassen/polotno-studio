@@ -23,6 +23,7 @@ import { IconsSection } from '../sections/icons-section';
 import { ShapesSection } from '../sections/shapes-section';
 import { StableDiffusionSection } from '../sections/stable-diffusion-section';
 import { MyDesignsSection } from '../sections/my-designs-section';
+import { VersionsSection } from '../sections/versions-section';
 
 import { useProject } from '../project';
 
@@ -34,6 +35,7 @@ import ptBr from '../translations/pt-br';
 import zhCh from '../translations/zh-ch';
 
 import Topbar from '../topbar/topbar';
+import { enableConsoleHelpers } from '../utils/markElementHelper';
 
 // import '@blueprintjs/core/lib/css/blueprint.css';
 
@@ -295,6 +297,9 @@ const sections = DEFAULT_SECTIONS
   .filter((section) => section.name !== 'stable-diffusion')
   .filter((section) => section.name !== 'qr');
 
+// Add versions section
+sections.push(VersionsSection);
+
 const isStandalone = () => {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -361,6 +366,11 @@ const DesignToolPage = observer(({ store }) => {
   React.useEffect(() => {
     project.firstLoad();
   }, []);
+
+  // Enable console helpers for batch processing
+  React.useEffect(() => {
+    enableConsoleHelpers(store);
+  }, [store]);
 
   // Hide add page and duplicate page buttons (single page only for trading cards)
   React.useEffect(() => {
