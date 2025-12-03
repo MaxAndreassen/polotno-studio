@@ -1,5 +1,6 @@
 import React from 'react';
 import { observer } from 'mobx-react-lite';
+import { useNavigate } from 'react-router-dom';
 import {
   Navbar,
   Alignment,
@@ -7,7 +8,9 @@ import {
   NavbarDivider,
   EditableText,
   Popover,
+  Button,
 } from '@blueprintjs/core';
+import { ArrowLeft } from '@blueprintjs/icons';
 
 import FaGithub from '@meronex/icons/fa/FaGithub';
 import FaDiscord from '@meronex/icons/fa/FaDiscord';
@@ -79,11 +82,19 @@ const Status = observer(({ project }) => {
 
 export default observer(({ store }) => {
   const project = useProject();
+  const navigate = useNavigate();
 
   return (
     <NavbarContainer className="bp5-navbar topbar">
       <NavInner>
         <Navbar.Group align={Alignment.LEFT}>
+          <Button
+            icon={<ArrowLeft />}
+            minimal
+            onClick={() => navigate('/')}
+            title="Back to Home"
+            style={{ marginRight: '8px' }}
+          />
           <div
             style={{
               display: 'flex',
