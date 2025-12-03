@@ -1,5 +1,6 @@
 import React from 'react';
 import { observer } from 'mobx-react-lite';
+import { useSearchParams } from 'react-router-dom';
 import { Spinner } from '@blueprintjs/core';
 
 import { PolotnoContainer, SidePanelWrap, WorkspaceWrap } from 'polotno';
@@ -351,6 +352,8 @@ const useHeight = () => {
 const DesignToolPage = observer(({ store }) => {
   const project = useProject();
   const height = useHeight();
+  const [searchParams] = useSearchParams();
+  const [hasLoadedDesign, setHasLoadedDesign] = React.useState(false);
 
   React.useEffect(() => {
     if (project.language.startsWith('fr')) {
@@ -368,9 +371,35 @@ const DesignToolPage = observer(({ store }) => {
     }
   }, [project.language]);
 
+  // Load design from query parameter or fallback to firstLoad
   React.useEffect(() => {
-    project.firstLoad();
-  }, []);
+    if (hasLoadedDesign) return;
+    
+    const designId = searchParams.get('design');
+    if (designId) {
+      // Load the specific design from the query parameter
+      project.loadById(designId).then(() => {
+        setHasLoadedDesign(true);
+        // Clean up the query parameter after loading
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete('design');
+        const newSearch = newSearchParams.toString();
+        const newUrl = newSearch 
+          ? `${window.location.pathname}?${newSearch}`
+          : window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }).catch((error) => {
+        console.error('Error loading design from query parameter:', error);
+        // Fallback to firstLoad if loading fails
+        project.firstLoad();
+        setHasLoadedDesign(true);
+      });
+    } else {
+      // No design parameter, use normal firstLoad
+      project.firstLoad();
+      setHasLoadedDesign(true);
+    }
+  }, [searchParams, project, hasLoadedDesign]);
 
   // Enable console helpers for batch processing
   React.useEffect(() => {
