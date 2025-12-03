@@ -463,7 +463,18 @@ const App = observer(({ store }) => {
           <WorkspaceWrap>
             <Toolbar store={store} />
             <Workspace store={store} />
-            <ZoomButtons store={store} />
+          <div
+    style={{
+      position: 'absolute',
+      bottom: '0px',
+      right: '0px',
+      width: '100%',
+      height: '20px',
+      border: '1px solid #393939',
+      backgroundColor: '#2a2b2b', //'#e7e7e7', // Match your background color
+      zIndex: 1000,
+    }}
+  />
             {/* PagesTimeline removed - single page only for trading cards */}
           </WorkspaceWrap>
         </PolotnoContainer>
