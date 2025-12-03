@@ -147,9 +147,15 @@ const VersionsPanel = observer(({ store }) => {
       setVariableTypes({});
     }
 
-    // Load saved versions
+    // Load saved versions and ensure they have _name field for backward compatibility
     const savedVersions = loadVersions(currentId);
-    setVersions(savedVersions);
+    const versionsWithNames = savedVersions.map((version, index) => {
+      if (!version._name) {
+        return { ...version, _name: `Version ${index + 1}` };
+      }
+      return version;
+    });
+    setVersions(versionsWithNames);
   }, [store, project?.id]);
 
   // Restore original design when component unmounts or preview is cancelled
@@ -174,7 +180,9 @@ const VersionsPanel = observer(({ store }) => {
   }, [versions, designId]);
 
   const addVersion = () => {
-    const newVersion = {};
+    const newVersion = {
+      _name: `Version ${versions.length + 1}`,
+    };
     variables.forEach((variable) => {
       newVersion[variable] = '';
     });
@@ -189,6 +197,23 @@ const VersionsPanel = observer(({ store }) => {
     const updated = [...versions];
     updated[index] = { ...updated[index], [variable]: value };
     setVersions(updated);
+  };
+
+  const updateVersionName = (index, name) => {
+    const updated = [...versions];
+    updated[index] = { ...updated[index], _name: name };
+    setVersions(updated);
+  };
+
+  // Helper function to sanitize filename
+  const sanitizeFilename = (name) => {
+    if (!name) return '';
+    return name
+      .replace(/[^a-z0-9-_\s]/gi, '-')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase();
   };
 
   const handleImageUpload = (index, variable, file) => {
@@ -219,13 +244,19 @@ const VersionsPanel = observer(({ store }) => {
       // Generate card with version data
       generateCard(store, templateJson, versionData);
 
-      // Generate filename from version data
-      const filename = Object.values(versionData)
-        .filter((v) => v)
-        .slice(0, 3)
-        .join('-')
-        .replace(/[^a-z0-9-]/gi, '-')
-        .toLowerCase() || `version-${index + 1}`;
+      // Generate filename from version name or fallback to version data
+      let filename;
+      if (versionData._name && versionData._name.trim()) {
+        filename = sanitizeFilename(versionData._name) || `version-${index + 1}`;
+      } else {
+        filename = Object.entries(versionData)
+          .filter(([key, value]) => key !== '_name' && value)
+          .slice(0, 3)
+          .map(([key, value]) => value)
+          .join('-')
+          .replace(/[^a-z0-9-]/gi, '-')
+          .toLowerCase() || `version-${index + 1}`;
+      }
 
       // Download as PNG image (same as topbar download button)
       await store.saveAsImage({
@@ -258,12 +289,19 @@ const VersionsPanel = observer(({ store }) => {
           // Generate card with version data
           generateCard(store, templateJson, versionData);
 
-          const filename = Object.values(versionData)
-            .filter((v) => v)
-            .slice(0, 3)
-            .join('-')
-            .replace(/[^a-z0-9-]/gi, '-')
-            .toLowerCase() || `version-${i + 1}`;
+          // Generate filename from version name or fallback to version data
+          let filename;
+          if (versionData._name && versionData._name.trim()) {
+            filename = sanitizeFilename(versionData._name) || `version-${i + 1}`;
+          } else {
+            filename = Object.entries(versionData)
+              .filter(([key, value]) => key !== '_name' && value)
+              .slice(0, 3)
+              .map(([key, value]) => value)
+              .join('-')
+              .replace(/[^a-z0-9-]/gi, '-')
+              .toLowerCase() || `version-${i + 1}`;
+          }
 
           // Download as PNG image
           await store.saveAsImage({
@@ -293,7 +331,7 @@ const VersionsPanel = observer(({ store }) => {
   const previewVersion = (index) => {
     const versionData = versions[index];
     
-    // Check if all required variables are filled
+    // Check if all required variables are filled (exclude _name field)
     const missingVars = variables.filter(v => !versionData[v] || versionData[v] === '');
     if (missingVars.length > 0) {
       alert(`Please fill in all variables before previewing. Missing: ${missingVars.join(', ')}`);
@@ -394,7 +432,7 @@ const VersionsPanel = observer(({ store }) => {
           >
             <span style={{ fontSize: '0.9rem', color: '#5C9BD1' }}>
               <EyeOn style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-              Previewing version {previewIndex + 1} - Design is read-only
+              Previewing {versions[previewIndex]?._name || `version ${previewIndex + 1}`} - Design is read-only
             </span>
             <Button
               small
@@ -462,6 +500,7 @@ const VersionsPanel = observer(({ store }) => {
             <thead>
               <tr>
                 <th style={{ padding: '8px', textAlign: 'left' }}>#</th>
+                <th style={{ padding: '8px', textAlign: 'left' }}>Name</th>
                 {variables.map((variable) => (
                   <th
                     key={variable}
@@ -479,6 +518,15 @@ const VersionsPanel = observer(({ store }) => {
               {versions.map((version, index) => (
                 <tr key={index}>
                   <td style={{ padding: '8px' }}>{index + 1}</td>
+                  <td style={{ padding: '4px' }}>
+                    <InputGroup
+                      value={version._name || `Version ${index + 1}`}
+                      onChange={(e) => updateVersionName(index, e.target.value)}
+                      placeholder={`Version ${index + 1}`}
+                      small
+                      style={{ minWidth: '120px' }}
+                    />
+                  </td>
                   {variables.map((variable) => (
                     <td key={variable} style={{ padding: '4px' }}>
                       {variableTypes[variable] === 'image' ? (

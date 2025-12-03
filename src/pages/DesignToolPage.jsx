@@ -295,7 +295,12 @@ const sections = DEFAULT_SECTIONS
   .filter((section) => section.name !== 'photos')
   .filter((section) => section.name !== 'quotes')
   .filter((section) => section.name !== 'stable-diffusion')
-  .filter((section) => section.name !== 'qr');
+  .filter((section) => section.name !== 'qr')
+  .filter((section) => section.name !== 'background')
+  .filter((section) => section.name !== 'templates')
+  .filter((section) => section.name !== 'draw')
+
+  console.log(sections);
 
 // Add versions section
 sections.push(VersionsSection);
