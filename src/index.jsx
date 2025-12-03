@@ -4,6 +4,11 @@ import ReactDOM from 'react-dom/client';
 import { createStore } from 'polotno/model/store';
 import { unstable_setAnimationsEnabled } from 'polotno/config';
 import { createProject, ProjectContext } from './project';
+import {
+  TRADING_CARD_WIDTH,
+  TRADING_CARD_HEIGHT,
+  TRADING_CARD_DPI,
+} from './constants';
 
 import '@blueprintjs/core/lib/css/blueprint.css';
 import './index.css';
@@ -25,9 +30,31 @@ But feel free to use this repository as a reference for your own project and to 
 
 unstable_setAnimationsEnabled(true);
 
-const store = createStore({ key: 'nFA5H9elEytDyPyvKL7T' });
+const store = createStore({
+  key: 'nFA5H9elEytDyPyvKL7T',
+  dpi: TRADING_CARD_DPI, // Set DPI to 300 for print quality
+});
 window.store = store;
-store.addPage();
+
+// Override addPage to prevent adding more than one page (trading card = single page only)
+const originalAddPage = store.addPage.bind(store);
+store.addPage = function (options) {
+  // Only allow adding a page if there are no pages, or if clearing/resetting
+  if (this.pages.length === 0) {
+    return originalAddPage({
+      width: TRADING_CARD_WIDTH,
+      height: TRADING_CARD_HEIGHT,
+      ...options,
+    });
+  }
+  // Silently ignore attempts to add additional pages
+  return this.pages[0];
+};
+
+store.addPage({
+  width: TRADING_CARD_WIDTH,
+  height: TRADING_CARD_HEIGHT,
+});
 
 const project = createProject({ store });
 window.project = project;

@@ -113,3 +113,36 @@ body .bp5-dark .bp5-html-select .bp5-icon {
 .bp5-dark .bp5-menu-item::before, .bp5-dark .bp5-menu-item .bp5-menu-item-icon, .bp5-dark .bp5-menu-item .bp5-menu-item-selected-icon, .bp5-dark .bp5-menu-item .bp5-submenu-icon {
     color: white;
 }
+
+/* Hide add page and duplicate page buttons for trading card editor (single page only) */
+/* Target buttons by various possible selectors */
+.polotno-toolbar [data-name="addPage"],
+.polotno-toolbar [data-name="duplicatePage"],
+.polotno-toolbar button[aria-label*="Add page" i],
+.polotno-toolbar button[aria-label*="add page" i],
+.polotno-toolbar button[aria-label*="Duplicate page" i],
+.polotno-toolbar button[aria-label*="duplicate page" i],
+.polotno-toolbar .bp5-button[data-action="addPage"],
+.polotno-toolbar .bp5-button[data-action="duplicatePage"],
+.polotno-toolbar button[title*="Add page" i],
+.polotno-toolbar button[title*="Duplicate page" i] {
+    display: none !important;
+}
+
+/* Hide menu items for add page and duplicate page */
+.bp5-menu-item[data-action="addPage"],
+.bp5-menu-item[data-action="duplicatePage"],
+.bp5-menu-item[aria-label*="Add page" i],
+.bp5-menu-item[aria-label*="add page" i],
+.bp5-menu-item[aria-label*="Duplicate page" i],
+.bp5-menu-item[aria-label*="duplicate page" i],
+.bp5-menu-item[title*="Add page" i],
+.bp5-menu-item[title*="Duplicate page" i] {
+    display: none !important;
+}
+
+/* Hide by text content using JavaScript-like selectors (if Polotno uses data attributes) */
+[data-polotno-action="addPage"],
+[data-polotno-action="duplicatePage"] {
+    display: none !important;
+}

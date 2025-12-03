@@ -154,6 +154,11 @@ export const FileMenu = observer(({ store, project }) => {
             if (json) {
               await project.createNewDesign();
               store.loadJSON(json);
+              // Ensure only one page for trading card editor
+              // Remove all pages except the first one
+              while (store.pages.length > 1) {
+                store.pages[store.pages.length - 1].remove();
+              }
               project.save();
               input.value = '';
             }
@@ -197,6 +202,11 @@ export const FileMenu = observer(({ store, project }) => {
             if (json) {
               await project.createNewDesign();
               store.loadJSON(json);
+              // Ensure only one page for trading card editor
+              // Remove all pages except the first one
+              while (store.pages.length > 1) {
+                store.pages[store.pages.length - 1].remove();
+              }
               project.save();
               input.value = '';
             }

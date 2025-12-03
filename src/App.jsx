@@ -12,7 +12,7 @@ import {
   VideosSection,
 } from 'polotno/side-panel';
 import { Workspace } from 'polotno/canvas/workspace';
-import { PagesTimeline } from 'polotno/pages-timeline';
+// PagesTimeline removed - single page only for trading cards
 import { setTranslations } from 'polotno/config';
 
 import { loadFile } from './file';
@@ -270,11 +270,13 @@ DEFAULT_SECTIONS.find((section) => section.name === 'layers').Tab = (props) => (
   </SectionTab>
 );
 
-DEFAULT_SECTIONS.find((section) => section.name === 'size').Tab = (props) => (
-  <SectionTab name="Size" {...props}>
-    <SizeIcon />
-  </SectionTab>
+// Remove size section to enforce trading card dimensions only
+const sizeSectionIndex = DEFAULT_SECTIONS.findIndex(
+  (section) => section.name === 'size'
 );
+if (sizeSectionIndex !== -1) {
+  DEFAULT_SECTIONS.splice(sizeSectionIndex, 1);
+}
 
 const UpdatedVideoSection = {
   ...VideosSection,
@@ -353,6 +355,55 @@ const App = observer(({ store }) => {
     project.firstLoad();
   }, []);
 
+  // Hide add page and duplicate page buttons (single page only for trading cards)
+  React.useEffect(() => {
+    const hidePageButtons = () => {
+      // Find and hide buttons by various methods
+      const selectors = [
+        '[data-name="addPage"]',
+        '[data-name="duplicatePage"]',
+        '[data-action="addPage"]',
+        '[data-action="duplicatePage"]',
+      ];
+
+      selectors.forEach((selector) => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach((el) => {
+          el.style.display = 'none';
+        });
+      });
+
+      // Check elements by text content and aria-label
+      const allButtons = document.querySelectorAll('button, .bp5-menu-item');
+      allButtons.forEach((el) => {
+        const text = (el.textContent || '').toLowerCase();
+        const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+        const title = (el.getAttribute('title') || '').toLowerCase();
+        
+        if (
+          text.includes('add page') ||
+          text.includes('duplicate page') ||
+          ariaLabel.includes('add page') ||
+          ariaLabel.includes('duplicate page') ||
+          title.includes('add page') ||
+          title.includes('duplicate page')
+        ) {
+          el.style.display = 'none';
+        }
+      });
+    };
+
+    // Run immediately and on mutations (for dynamically added buttons)
+    hidePageButtons();
+    const observer = new MutationObserver(hidePageButtons);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   React.useEffect(() => {
     const path = window.location.pathname;
     if (path.endsWith('/sign-in') || path.endsWith('/sign-up')) {
@@ -406,7 +457,7 @@ const App = observer(({ store }) => {
             <Toolbar store={store} />
             <Workspace store={store} />
             <ZoomButtons store={store} />
-            <PagesTimeline store={store} />
+            {/* PagesTimeline removed - single page only for trading cards */}
           </WorkspaceWrap>
         </PolotnoContainer>
       </div>

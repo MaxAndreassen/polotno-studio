@@ -1,6 +1,10 @@
 import * as mobx from 'mobx';
 import { createContext, useContext } from 'react';
 import { storage } from './storage';
+import {
+  TRADING_CARD_WIDTH,
+  TRADING_CARD_HEIGHT,
+} from './constants';
 
 import * as api from './api';
 
@@ -156,7 +160,10 @@ class Project {
 
   async clear() {
     this.store.clear();
-    this.store.addPage();
+    this.store.addPage({
+      width: TRADING_CARD_WIDTH,
+      height: TRADING_CARD_HEIGHT,
+    });
     await storage.removeItem('polotno-last-design-id');
   }
 

@@ -11,6 +11,11 @@ export const loadJSONFile = (file, store) => {
 
     if (json) {
       store.loadJSON(json);
+      // Ensure only one page for trading card editor
+      // Remove all pages except the first one
+      while (store.pages.length > 1) {
+        store.pages[store.pages.length - 1].remove();
+      }
     }
   };
   reader.onerror = function () {
