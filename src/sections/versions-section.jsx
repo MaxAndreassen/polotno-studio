@@ -83,6 +83,8 @@ const VersionsPanel = observer(({ store }) => {
   const [previewIndex, setPreviewIndex] = React.useState(null);
   const [originalDesign, setOriginalDesign] = React.useState(null);
   const fileInputRefs = React.useRef({});
+  // Track if we've loaded versions to prevent overwriting with empty array on initial mount
+  const hasLoadedVersions = React.useRef(false);
 
   // Get current design ID from project or create a hash
   const getCurrentDesignId = () => {
@@ -106,7 +108,13 @@ const VersionsPanel = observer(({ store }) => {
   // Load template variables when store or project changes
   React.useEffect(() => {
     const currentId = getCurrentDesignId();
+    const previousDesignId = designId;
     setDesignId(currentId);
+    
+    // Reset the loaded flag if designId changed (e.g., from hash to project.id)
+    if (previousDesignId && previousDesignId !== currentId) {
+      hasLoadedVersions.current = false;
+    }
 
     try {
       // Check if store has pages before trying to get JSON
@@ -148,14 +156,21 @@ const VersionsPanel = observer(({ store }) => {
     }
 
     // Load saved versions and ensure they have _name field for backward compatibility
-    const savedVersions = loadVersions(currentId);
-    const versionsWithNames = savedVersions.map((version, index) => {
-      if (!version._name) {
-        return { ...version, _name: `Version ${index + 1}` };
-      }
-      return version;
-    });
-    setVersions(versionsWithNames);
+    // Only load if we have a valid project ID (not a hash) to ensure we're using the correct storage key
+    if (project?.id && currentId === project.id) {
+      const savedVersions = loadVersions(currentId);
+      console.log('Loading versions for:', currentId, 'Found:', savedVersions.length);
+      const versionsWithNames = savedVersions.map((version, index) => {
+        if (!version._name) {
+          return { ...version, _name: `Version ${index + 1}` };
+        }
+        return version;
+      });
+      setVersions(versionsWithNames);
+      hasLoadedVersions.current = true;
+    }
+    // Don't clear versions if project.id isn't set yet - wait for it to be set
+    // This prevents overwriting existing versions on initial load
   }, [store, project?.id]);
 
   // Restore original design when component unmounts or preview is cancelled
@@ -173,11 +188,17 @@ const VersionsPanel = observer(({ store }) => {
   }, [previewIndex, originalDesign, store]);
 
   // Save versions whenever they change
+  // Only save if we have a valid project ID (not a hash) to ensure we're using the correct storage key
   React.useEffect(() => {
-    if (designId && versions.length > 0) {
+    // Only save if:
+    // 1. We have a project.id (actual design ID, not hash)
+    // 2. designId matches project.id (ensures we're not using a hash)
+    // 3. We've already loaded versions (prevents overwriting with empty array on initial mount)
+    if (project?.id && designId === project.id && designId && hasLoadedVersions.current) {
+      console.log('Saving versions:', designId, versions.length);
       saveVersions(designId, versions);
     }
-  }, [versions, designId]);
+  }, [versions, designId, project?.id]);
 
   const addVersion = () => {
     const newVersion = {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Spinner, Button, Card } from '@blueprintjs/core';
-import { ArrowLeft, Edit } from '@blueprintjs/icons';
+import { Spinner, Button, Card, InputGroup } from '@blueprintjs/core';
+import { ArrowLeft, Edit, Plus, Trash } from '@blueprintjs/icons';
 import { Workspace } from 'polotno/canvas/workspace';
 import { PolotnoContainer, WorkspaceWrap } from 'polotno';
 import * as api from '../api';
@@ -27,6 +27,15 @@ const loadVersions = (designId) => {
   }
 };
 
+// Save versions to localStorage
+const saveVersions = (designId, versions) => {
+  try {
+    localStorage.setItem(getStorageKey(designId), JSON.stringify(versions));
+  } catch (e) {
+    console.error('Error saving versions:', e);
+  }
+};
+
 const DesignDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -36,6 +45,9 @@ const DesignDetailPage = () => {
   const [versionPreviews, setVersionPreviews] = React.useState({});
   const [loading, setLoading] = React.useState(true);
   const [generatingPreviews, setGeneratingPreviews] = React.useState(false);
+  const [variables, setVariables] = React.useState([]);
+  const [editingNameIndex, setEditingNameIndex] = React.useState(null);
+  const hasLoadedVersions = React.useRef(false);
 
   // Create a temporary store for generating version previews
   const tempStore = React.useMemo(() => {
@@ -55,6 +67,9 @@ const DesignDetailPage = () => {
 
   // Load design and versions
   React.useEffect(() => {
+    // Reset the loaded flag when design ID changes
+    hasLoadedVersions.current = false;
+    
     const loadDesign = async () => {
       setLoading(true);
       try {
@@ -72,6 +87,7 @@ const DesignDetailPage = () => {
 
         // Load versions from localStorage
         const savedVersions = loadVersions(id);
+        console.log('DesignDetailPage: Loading versions for', id, 'Found:', savedVersions.length);
         const versionsWithNames = savedVersions.map((version, index) => {
           if (!version._name) {
             return { ...version, _name: `Version ${index + 1}` };
@@ -79,6 +95,14 @@ const DesignDetailPage = () => {
           return version;
         });
         setVersions(versionsWithNames);
+        hasLoadedVersions.current = true;
+
+        // Get variables from the template
+        if (storeJSON) {
+          tempStore.loadJSON(storeJSON);
+          const preview = previewTemplateVariables(tempStore, storeJSON);
+          setVariables(preview.variableNames || []);
+        }
       } catch (error) {
         console.error('Error loading design:', error);
       } finally {
@@ -148,6 +172,43 @@ const DesignDetailPage = () => {
       generateVersionPreviews();
     }
   }, [design, versions, tempStore]);
+
+  // Save versions whenever they change
+  // Only save if we have a valid design ID and versions array exists
+  // Also only save after we've finished loading versions (prevents overwriting on initial load)
+  React.useEffect(() => {
+    if (id && Array.isArray(versions) && hasLoadedVersions.current) {
+      console.log('DesignDetailPage: Saving versions for', id, 'Count:', versions.length);
+      saveVersions(id, versions);
+    }
+  }, [versions, id]);
+
+  // Version management functions
+  const addVersion = () => {
+    const newVersion = {
+      _name: `Version ${versions.length + 1}`,
+    };
+    variables.forEach((variable) => {
+      newVersion[variable] = '';
+    });
+    setVersions([...versions, newVersion]);
+  };
+
+  const deleteVersion = (index) => {
+    if (window.confirm('Are you sure you want to delete this version?')) {
+      const newVersions = versions.filter((_, i) => i !== index);
+      setVersions(newVersions);
+      // Clear all previews - they will be regenerated
+      setVersionPreviews({});
+    }
+  };
+
+  const updateVersionName = (index, name) => {
+    const updated = [...versions];
+    updated[index] = { ...updated[index], _name: name || `Version ${index + 1}` };
+    setVersions(updated);
+    setEditingNameIndex(null);
+  };
 
   if (loading) {
     return (
@@ -328,16 +389,34 @@ const DesignDetailPage = () => {
 
         {/* Versions Section */}
         <div>
-          <h2
+          <div
             style={{
-              fontSize: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               marginBottom: '1rem',
-              color: '#333',
-              fontWeight: '600',
             }}
           >
-            Versions
-          </h2>
+            <h2
+              style={{
+                fontSize: '1.25rem',
+                margin: 0,
+                color: '#333',
+                fontWeight: '600',
+              }}
+            >
+              Versions
+            </h2>
+            {variables.length > 0 && (
+              <Button
+                icon={<Plus />}
+                intent="primary"
+                small
+                text="Add Version"
+                onClick={addVersion}
+              />
+            )}
+          </div>
 
           {generatingPreviews && (
             <div
@@ -366,9 +445,19 @@ const DesignDetailPage = () => {
               <p style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
                 No versions yet
               </p>
-              <p style={{ fontSize: '0.85rem' }}>
-                Create versions in the editor to see them here.
+              <p style={{ fontSize: '0.85rem', marginBottom: variables.length > 0 ? '1rem' : '0' }}>
+                {variables.length > 0
+                  ? 'Click "Add Version" above to create your first version, or create versions in the editor.'
+                  : 'This design has no changeable variables. Add variables in the editor to create versions.'}
               </p>
+              {variables.length > 0 && (
+                <Button
+                  icon={<Plus />}
+                  intent="primary"
+                  text="Add First Version"
+                  onClick={addVersion}
+                />
+              )}
             </Card>
           ) : (
             <div
@@ -392,7 +481,7 @@ const DesignDetailPage = () => {
                       backgroundColor: 'white',
                       boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                       transition: 'transform 0.2s, box-shadow 0.2s',
-                      cursor: 'pointer',
+                      position: 'relative',
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'translateY(-2px)';
@@ -403,6 +492,26 @@ const DesignDetailPage = () => {
                       e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
                     }}
                   >
+                    {/* Delete Button */}
+                    <Button
+                      icon={<Trash />}
+                      minimal
+                      small
+                      intent="danger"
+                      style={{
+                        position: 'absolute',
+                        top: '0.5rem',
+                        right: '0.5rem',
+                        zIndex: 10,
+                        opacity: 0.7,
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteVersion(index);
+                      }}
+                      title="Delete version"
+                    />
+
                     {/* Version Preview */}
                     {preview ? (
                       <div
@@ -448,19 +557,53 @@ const DesignDetailPage = () => {
                       </div>
                     )}
 
-                    {/* Version Name */}
-                    <h3
-                      style={{
-                        fontSize: '0.85rem',
-                        margin: 0,
-                        color: '#333',
-                        fontWeight: '600',
-                        textAlign: 'center',
-                        lineHeight: '1.2',
-                      }}
-                    >
-                      {versionName}
-                    </h3>
+                    {/* Version Name - Editable */}
+                    {editingNameIndex === index ? (
+                      <InputGroup
+                        value={version._name || `Version ${index + 1}`}
+                        onChange={(e) => {
+                          const updated = [...versions];
+                          updated[index] = { ...updated[index], _name: e.target.value };
+                          setVersions(updated);
+                        }}
+                        onBlur={() => updateVersionName(index, versions[index]._name)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            updateVersionName(index, versions[index]._name);
+                          } else if (e.key === 'Escape') {
+                            setEditingNameIndex(null);
+                          }
+                        }}
+                        autoFocus
+                        small
+                        style={{ fontSize: '0.85rem', textAlign: 'center' }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          fontSize: '0.85rem',
+                          margin: 0,
+                          color: '#333',
+                          fontWeight: '600',
+                          textAlign: 'center',
+                          lineHeight: '1.2',
+                          cursor: 'pointer',
+                          padding: '0.25rem',
+                          borderRadius: '2px',
+                          transition: 'background-color 0.2s',
+                        }}
+                        onClick={() => setEditingNameIndex(index)}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = '#f0f0f0';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = 'transparent';
+                        }}
+                        title="Click to edit name"
+                      >
+                        {versionName}
+                      </div>
+                    )}
                   </Card>
                 );
               })}
