@@ -122,40 +122,64 @@ export function applyTemplateData(store, data, options = {}) {
       else if (element.type === 'text') {
         updateTextElement(element, String(value));
       }
-      // Handle image elements
+      // Handle image elements - skip if value is empty (keep original image)
       else if (element.type === 'image' && typeof value === 'string') {
-        updateImageElement(element, value);
+        // Only update if value is not empty - empty string means keep original
+        if (value.trim() !== '') {
+          updateImageElement(element, value);
+        }
+        // If empty, skip update to keep the original image from the template
       }
       // Handle image elements with object data (src, width, height, etc.)
       else if (element.type === 'image' && typeof value === 'object') {
-        updateImageElement(element, value.src || value.url, value);
+        // Only update if src/url is provided and not empty
+        const imageSrc = value.src || value.url;
+        if (imageSrc && imageSrc.trim() !== '') {
+          updateImageElement(element, imageSrc, value);
+        }
+        // If empty, skip update to keep the original image from the template
       }
       // Handle figure elements - collect for replacement after iteration
+      // Skip if value is empty (keep original figure)
       else if (element.type === 'figure' && typeof value === 'string') {
-        figuresToReplace.push({
-          elementId: element.id,
-          value: value,
-          options: { x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation }
-        });
+        // Only replace if value is not empty
+        if (value.trim() !== '') {
+          figuresToReplace.push({
+            elementId: element.id,
+            value: value,
+            options: { x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation }
+          });
+        }
+        // If empty, skip replacement to keep the original figure from the template
       }
       // Handle figure elements with object data
-      else if (element.type === 'figure' && typeof value === 'object' && value.src) {
-        figuresToReplace.push({
-          elementId: element.id,
-          value: value.src || value.url,
-          options: {
-            x: element.x,
-            y: element.y,
-            width: value.width || element.width,
-            height: value.height || element.height,
-            rotation: value.rotation || element.rotation,
-            ...value
-          }
-        });
+      else if (element.type === 'figure' && typeof value === 'object') {
+        const imageSrc = value.src || value.url;
+        // Only replace if src/url is provided and not empty
+        if (imageSrc && imageSrc.trim() !== '') {
+          figuresToReplace.push({
+            elementId: element.id,
+            value: imageSrc,
+            options: {
+              x: element.x,
+              y: element.y,
+              width: value.width || element.width,
+              height: value.height || element.height,
+              rotation: value.rotation || element.rotation,
+              ...value
+            }
+          });
+        }
+        // If empty, skip replacement to keep the original figure from the template
       }
       // Handle svg elements (can also accept image data)
+      // Skip if value is empty (keep original svg)
       else if (element.type === 'svg' && typeof value === 'string') {
-        element.set({ src: value });
+        // Only update if value is not empty
+        if (value.trim() !== '') {
+          element.set({ src: value });
+        }
+        // If empty, skip update to keep the original svg from the template
       }
       // Handle other element types - try to set the value as a property
       else {
