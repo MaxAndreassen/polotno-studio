@@ -133,9 +133,9 @@ export default observer(({ store }) => {
         <Navbar.Group align={Alignment.RIGHT}>
           {/* <Status project={project} /> */}
 
-          <AnchorButton href="https://polotno.com" target="_blank" minimal>
+          {/*<AnchorButton href="https://polotno.com" target="_blank" minimal>
             For developers
-          </AnchorButton>
+          </AnchorButton>*/}
           {/* 
           <AnchorButton
             minimal
@@ -153,8 +153,8 @@ export default observer(({ store }) => {
               <FaTwitter className="bp5-icon" style={{ fontSize: '20px' }} />
             }
           ></AnchorButton> */}
-          <NavbarDivider />
-          <PostProcessButton store={store} />
+          {/*<NavbarDivider />
+          <PostProcessButton store={store} />*/}
           <DownloadButton store={store} />
           <UserMenu store={store} project={project} />
           {/* <NavbarHeading>Polotno Studio</NavbarHeading> */}

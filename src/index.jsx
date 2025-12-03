@@ -28,7 +28,7 @@ But feel free to use this repository as a reference for your own project and to 
   );
 }
 
-unstable_setAnimationsEnabled(true);
+// unstable_setAnimationsEnabled(true);
 
 const store = createStore({
   key: 'nFA5H9elEytDyPyvKL7T',

@@ -288,6 +288,13 @@ const UpdatedVideoSection = {
 };
 DEFAULT_SECTIONS.splice(7, 0, UpdatedVideoSection);
 
+const sections = DEFAULT_SECTIONS
+  .filter((section) => section.name !== 'videos')
+  .filter((section) => section.name !== 'photos')
+  .filter((section) => section.name !== 'quotes')
+  .filter((section) => section.name !== 'stable-diffusion')
+  .filter((section) => section.name !== 'qr');
+
 const isStandalone = () => {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -451,7 +458,7 @@ const App = observer(({ store }) => {
       <div style={{ height: 'calc(100% - 50px)' }}>
         <PolotnoContainer className="polotno-app-container">
           <SidePanelWrap>
-            <SidePanel store={store} sections={DEFAULT_SECTIONS} />
+            <SidePanel store={store} sections={sections} />
           </SidePanelWrap>
           <WorkspaceWrap>
             <Toolbar store={store} />
