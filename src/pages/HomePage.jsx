@@ -301,30 +301,62 @@ const HomePage = () => {
                     )}
                   </div>
 
-                  {/* Open in Studio Link */}
-                  <Link
-                    to={`/studio?design=${design.id}`}
+                  {/* Action Buttons */}
+                  <div
                     style={{
-                      display: 'block',
+                      display: 'flex',
+                      gap: '0.5rem',
                       marginTop: '1rem',
-                      padding: '0.5rem',
-                      textAlign: 'center',
-                      backgroundColor: '#f0f0f0',
-                      color: '#333',
-                      textDecoration: 'none',
-                      borderRadius: '4px',
-                      fontSize: '0.9rem',
-                      transition: 'background-color 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = '#e0e0e0';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = '#f0f0f0';
                     }}
                   >
-                    Open in Studio
-                  </Link>
+                    <Link
+                      to={`/design/${design.id}`}
+                      style={{
+                        flex: 1,
+                        display: 'block',
+                        padding: '0.5rem',
+                        textAlign: 'center',
+                        backgroundColor: '#137cbd',
+                        color: 'white',
+                        textDecoration: 'none',
+                        borderRadius: '4px',
+                        fontSize: '0.9rem',
+                        fontWeight: '500',
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#106ba3';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = '#137cbd';
+                      }}
+                    >
+                      View Design
+                    </Link>
+                    <Link
+                      to={`/studio?design=${design.id}`}
+                      style={{
+                        flex: 1,
+                        display: 'block',
+                        padding: '0.5rem',
+                        textAlign: 'center',
+                        backgroundColor: '#f0f0f0',
+                        color: '#333',
+                        textDecoration: 'none',
+                        borderRadius: '4px',
+                        fontSize: '0.9rem',
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#e0e0e0';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = '#f0f0f0';
+                      }}
+                    >
+                      Edit
+                    </Link>
+                  </div>
                 </Card>
               );
             })}
